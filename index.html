@@ -21,38 +21,7 @@
             min-height: 100vh;
         }
 
-        /* Loading */
-        #loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 80px 20px;
-            color: #aaa;
-            font-size: 0.9rem;
-        }
 
-        .spinner {
-            width: 18px;
-            height: 18px;
-            border: 2px solid #e0e0e0;
-            border-top-color: #555;
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Empty */
-        #empty {
-            display: none;
-            text-align: center;
-            padding: 80px 20px;
-            color: #bbb;
-            font-size: 0.9rem;
-        }
 
         /* Feed container — tanpa batas lebar, tiap konten full */
         #posts {
@@ -172,12 +141,7 @@
 
 <body>
 
-    <div id="loading">
-        <div class="spinner"></div>
-        <span>Memuat konten...</span>
-    </div>
 
-    <div id="empty">Belum ada konten.</div>
 
     <div id="posts"></div>
 
@@ -218,12 +182,7 @@
         }
 
         async function loadPosts() {
-            const loading = document.getElementById('loading');
-            const emptyEl = document.getElementById('empty');
             const container = document.getElementById('posts');
-
-            loading.style.display = 'flex';
-            emptyEl.style.display = 'none';
             container.innerHTML = '';
 
             const { data, error } = await supabaseClient
@@ -231,17 +190,7 @@
                 .select('*')
                 .order('created_at', { ascending: false });
 
-            loading.style.display = 'none';
-
-            if (error) {
-                container.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#c00;font-size:0.9rem;">Gagal memuat data: ${error.message}</div>`;
-                return;
-            }
-
-            if (!data || data.length === 0) {
-                emptyEl.style.display = 'block';
-                return;
-            }
+            if (error || !data || data.length === 0) return;
 
             data.forEach(post => {
                 const el = document.createElement('div');
