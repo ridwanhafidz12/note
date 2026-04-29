@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            background: #0d0d0d;
+            color: #f0f0f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            width: 100%;
+            text-align: center;
+            padding: 36px 20px 18px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0d0d0d 100%);
+            border-bottom: 1px solid #2a2a4a;
+        }
+
+        header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #f87171, #fb923c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 700px;
+            padding: 30px 20px 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-card {
+            background: #1a1a2a;
+            border: 1px solid #2a2a4a;
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .form-card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #fb923c;
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.8rem;
+            color: #888;
+            margin-bottom: 5px;
+            margin-top: 12px;
+        }
+
+        input, textarea {
+            width: 100%;
+            background: #0d0d1a;
+            border: 1px solid #2a2a4a;
+            color: #f0f0f0;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            transition: border-color 0.2s;
+            outline: none;
+        }
+
+        input:focus, textarea:focus {
+            border-color: #fb923c;
+        }
+
+        textarea { min-height: 100px; resize: vertical; }
+
+        .btn-submit {
+            margin-top: 18px;
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(90deg, #f87171, #fb923c);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-submit:hover { opacity: 0.85; }
+
+        .list-card {
+            background: #1a1a2a;
+            border: 1px solid #2a2a4a;
+            border-radius: 16px;
+            padding: 24px;
+        }
+
+        .list-card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-bottom: 16px;
+        }
+
+        .post-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #0d0d1a;
+            border: 1px solid #2a2a4a;
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+
+        .post-item b { font-size: 0.9rem; color: #c4b5fd; }
+        .post-item span { font-size: 0.75rem; color: #555; display: block; margin-top: 2px; }
+
+        .btn-delete {
+            background: #2a1515;
+            border: 1px solid #5a2020;
+            color: #f87171;
+            padding: 6px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .btn-delete:hover { background: #3a1515; }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: #22c55e;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s, transform 0.3s;
+            z-index: 999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        #loading-list { text-align: center; color: #555; padding: 20px 0; font-size: 0.9rem; }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🛠️ Admin Panel</h1>
+    </header>
+
+    <div id="app">
+        <div class="form-card">
+            <h2>➕ Tambah Konten</h2>
+            <label for="title">Judul <span style="color:#555;font-size:0.75rem;">(opsional)</span></label>
+            <input id="title" placeholder="Masukkan judul..." />
+
+            <label for="content">Konten <span style="color:#555;font-size:0.75rem;">(opsional)</span></label>
+            <textarea id="content" placeholder="Tulis konten di sini..."></textarea>
+
+            <label for="media">URL Gambar / Video <span style="color:#555;font-size:0.75rem;">(opsional)</span></label>
+            <input id="media" placeholder="https://..." />
+
+            <p id="hint" style="font-size:0.78rem;color:#666;margin-top:10px;">* Minimal salah satu field harus diisi</p>
+
+            <button class="btn-submit" onclick="addPost()">Tambah Post</button>
+        </div>
+
+        <div class="list-card">
+            <h2>📋 Daftar Post</h2>
+            <div id="list"><div id="loading-list">Memuat...</div></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const { createClient } = window.supabase;
+
+        const supabaseClient = createClient(
+            "https://gudphbyhyslnltvmrcaw.supabase.co",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1ZHBoYnloeXNsbmx0dm1yY2F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDkxNTksImV4cCI6MjA5Mjk4NTE1OX0.WNtZ7v_7XntD3I679T9LyfeyasJcVGMzhsEyKMX3Ihk"
+        );
+
+        function showToast(msg, color = '#22c55e') {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.style.background = color;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        async function addPost() {
+            const title = document.getElementById('title').value.trim();
+            const content = document.getElementById('content').value.trim();
+            const media = document.getElementById('media').value.trim();
+
+            // Minimal 1 field harus diisi
+            if (!title && !content && !media) {
+                showToast('⚠️ Minimal satu field harus diisi!', '#f59e0b');
+                return;
+            }
+
+            const { error } = await supabaseClient.from('posts').insert([{
+                title,
+                content,
+                media_url: media || null
+            }]);
+
+            if (error) {
+                showToast('❌ Gagal menambah: ' + error.message, '#f87171');
+                return;
+            }
+
+            showToast('✅ Post berhasil ditambahkan!');
+            document.getElementById('title').value = '';
+            document.getElementById('content').value = '';
+            document.getElementById('media').value = '';
+            loadPosts();
+        }
+
+        async function deletePost(id) {
+            if (!confirm('Hapus post ini?')) return;
+
+            const { error } = await supabaseClient.from('posts').delete().eq('id', id);
+
+            if (error) {
+                showToast('❌ Gagal menghapus: ' + error.message, '#f87171');
+                return;
+            }
+
+            showToast('🗑️ Post dihapus!', '#f87171');
+            loadPosts();
+        }
+
+        async function loadPosts() {
+            const list = document.getElementById('list');
+            list.innerHTML = '<div id="loading-list">Memuat...</div>';
+
+            const { data, error } = await supabaseClient
+                .from('posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            list.innerHTML = '';
+
+            if (error) {
+                list.innerHTML = `<p style="color:#f87171;">❌ ${error.message}</p>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="color:#555;text-align:center;padding:20px">Belum ada post.</p>';
+                return;
+            }
+
+            data.forEach(post => {
+                const div = document.createElement('div');
+                div.className = 'post-item';
+                const label = post.title || (post.content ? post.content.substring(0, 40) + (post.content.length > 40 ? '...' : '') : post.media_url ? '(media)' : '(kosong)');
+                const sub = post.title && post.content ? post.content.substring(0, 60) + (post.content.length > 60 ? '...' : '') : post.media_url ? post.media_url : '';
+                div.innerHTML = `
+                    <div>
+                        <b>${label}</b>
+                        <span>${sub}</span>
+                    </div>
+                    <button class="btn-delete" onclick="deletePost('${post.id}')">🗑️ Hapus</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        loadPosts();
+    </script>
+
+</body>
+
+</html>

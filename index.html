@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konten Publik</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+
+        /* Loading */
+        #loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 80px 20px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #e0e0e0;
+            border-top-color: #555;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Empty */
+        #empty {
+            display: none;
+            text-align: center;
+            padding: 80px 20px;
+            color: #bbb;
+            font-size: 0.9rem;
+        }
+
+        /* Feed container — tanpa batas lebar, tiap konten full */
+        #posts {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Card — tidak ada border/padding samping, konten mengalir */
+        .card {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 28px 0;
+        }
+
+        .card:last-child {
+            border-bottom: none;
+        }
+
+        /* Area teks tetap centered dengan max-width */
+        .card-inner {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .card-content {
+            font-size: 0.92rem;
+            line-height: 1.8;
+            color: #444;
+            white-space: pre-wrap;
+            word-break: break-word;
+            user-select: text;
+        }
+
+        .card-meta {
+            font-size: 0.75rem;
+            color: #ccc;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* Media — full lebar layar */
+        .card-media {
+            margin-top: 18px;
+            width: 100%;
+        }
+
+        .card-media img,
+        .card-media video {
+            display: block;
+            width: 100%;
+            max-height: 100vh;
+            object-fit: contain;
+            background: #000;
+        }
+
+        /* Aksi — di bawah media, tetap centered */
+        .card-actions {
+            max-width: 600px;
+            margin: 14px auto 0;
+            padding: 0 20px;
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: #f7f7f7;
+            color: #444;
+            text-decoration: none;
+            transition: background 0.15s, border-color 0.15s;
+        }
+
+        .btn:hover {
+            background: #efefef;
+            border-color: #ccc;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(12px);
+            background: #222;
+            color: #fff;
+            padding: 9px 18px;
+            border-radius: 8px;
+            font-size: 0.82rem;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s, transform 0.25s;
+            z-index: 999;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <span>Memuat konten...</span>
+    </div>
+
+    <div id="empty">Belum ada konten.</div>
+
+    <div id="posts"></div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const { createClient } = window.supabase;
+
+        const supabaseClient = createClient(
+            "https://gudphbyhyslnltvmrcaw.supabase.co",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1ZHBoYnloeXNsbmx0dm1yY2F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDkxNTksImV4cCI6MjA5Mjk4NTE1OX0.WNtZ7v_7XntD3I679T9LyfeyasJcVGMzhsEyKMX3Ihk"
+        );
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+
+        function copyContent(content) {
+            navigator.clipboard.writeText(content).then(() => {
+                showToast('Teks berhasil disalin');
+            }).catch(() => {
+                showToast('Gagal menyalin teks');
+            });
+        }
+
+        function getFileName(url) {
+            return url.split('/').pop().split('?')[0];
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric'
+            });
+        }
+
+        async function loadPosts() {
+            const loading = document.getElementById('loading');
+            const emptyEl = document.getElementById('empty');
+            const container = document.getElementById('posts');
+
+            loading.style.display = 'flex';
+            emptyEl.style.display = 'none';
+            container.innerHTML = '';
+
+            const { data, error } = await supabaseClient
+                .from('posts')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            loading.style.display = 'none';
+
+            if (error) {
+                container.innerHTML = `<div style="padding:40px 20px;text-align:center;color:#c00;font-size:0.9rem;">Gagal memuat data: ${error.message}</div>`;
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                emptyEl.style.display = 'block';
+                return;
+            }
+
+            data.forEach(post => {
+                const el = document.createElement('div');
+                el.className = 'card';
+
+                // Bagian teks
+                const hasTitle = post.title && post.title.trim();
+                const hasContent = post.content && post.content.trim();
+                const safeContent = (post.content || '').replace(/`/g, '\\`').replace(/'/g, "\\'");
+
+                let textBlock = '';
+                if (hasTitle || hasContent) {
+                    textBlock = `
+                        <div class="card-inner">
+                            ${hasTitle ? `<div class="card-title">${post.title}</div>` : ''}
+                            ${hasContent ? `<div class="card-content">${post.content}</div>` : ''}
+
+                        </div>
+                    `;
+                }
+
+                // Bagian media — full lebar
+                let mediaBlock = '';
+                let actionsBlock = '';
+
+                if (post.media_url) {
+                    const fileName = getFileName(post.media_url);
+                    const isVideo = /\.(mp4|webm|ogg)$/i.test(post.media_url);
+
+                    const mediaEl = isVideo
+                        ? `<video src="${post.media_url}" controls playsinline></video>`
+                        : `<img src="${post.media_url}" alt="${post.title || ''}" loading="lazy" />`;
+
+                    mediaBlock = `<div class="card-media">${mediaEl}</div>`;
+
+                    actionsBlock = `
+                        <div class="card-actions">
+                            ${hasContent ? `<button class="btn" onclick="copyContent('${safeContent}')">Salin Teks</button>` : ''}
+                            <a class="btn" href="${post.media_url}" download="${fileName}">Unduh Media</a>
+                        </div>
+                    `;
+                } else if (hasContent) {
+                    actionsBlock = `
+                        <div class="card-actions">
+                            <button class="btn" onclick="copyContent('${safeContent}')">Salin Teks</button>
+                        </div>
+                    `;
+                }
+
+                el.innerHTML = textBlock + mediaBlock + actionsBlock;
+                container.appendChild(el);
+            });
+        }
+
+        loadPosts();
+    </script>
+
+</body>
+
+</html>
