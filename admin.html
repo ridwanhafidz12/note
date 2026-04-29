@@ -104,6 +104,35 @@
 
         .btn-submit:hover { opacity: 0.85; }
 
+        /* Mode edit — border biru */
+        .form-card.edit-mode {
+            border-color: #3b82f6;
+        }
+
+        .form-card.edit-mode h2 {
+            color: #60a5fa;
+        }
+
+        .form-card.edit-mode .btn-submit {
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+        }
+
+        .btn-cancel {
+            margin-top: 10px;
+            width: 100%;
+            padding: 10px;
+            background: transparent;
+            color: #666;
+            border: 1px solid #2a2a4a;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-cancel:hover { background: #1a1a2a; }
+
         .list-card {
             background: #1a1a2a;
             border: 1px solid #2a2a4a;
@@ -133,6 +162,26 @@
         .post-item b { font-size: 0.9rem; color: #c4b5fd; }
         .post-item span { font-size: 0.75rem; color: #555; display: block; margin-top: 2px; }
 
+        .item-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .btn-edit {
+            background: #1a2a3a;
+            border: 1px solid #2a4a6a;
+            color: #60a5fa;
+            padding: 6px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-family: inherit;
+            transition: background 0.2s;
+        }
+
+        .btn-edit:hover { background: #1a3a5a; }
+
         .btn-delete {
             background: #2a1515;
             border: 1px solid #5a2020;
@@ -143,7 +192,6 @@
             font-size: 0.8rem;
             font-family: inherit;
             transition: background 0.2s;
-            flex-shrink: 0;
         }
 
         .btn-delete:hover { background: #3a1515; }
@@ -171,6 +219,8 @@
         }
 
         #loading-list { text-align: center; color: #555; padding: 20px 0; font-size: 0.9rem; }
+
+        .hint { font-size: 0.78rem; color: #666; margin-top: 10px; }
     </style>
 </head>
 
@@ -181,8 +231,9 @@
     </header>
 
     <div id="app">
-        <div class="form-card">
-            <h2>➕ Tambah Konten</h2>
+        <div class="form-card" id="form-card">
+            <h2 id="form-title">➕ Tambah Konten</h2>
+
             <label for="title">Judul <span style="color:#555;font-size:0.75rem;">(opsional)</span></label>
             <input id="title" placeholder="Masukkan judul..." />
 
@@ -192,9 +243,10 @@
             <label for="media">URL Gambar / Video <span style="color:#555;font-size:0.75rem;">(opsional)</span></label>
             <input id="media" placeholder="https://..." />
 
-            <p id="hint" style="font-size:0.78rem;color:#666;margin-top:10px;">* Minimal salah satu field harus diisi</p>
+            <p class="hint">* Minimal salah satu field harus diisi</p>
 
-            <button class="btn-submit" onclick="addPost()">Tambah Post</button>
+            <button class="btn-submit" id="btn-submit" onclick="submitPost()">Tambah Post</button>
+            <button class="btn-cancel" id="btn-cancel" onclick="cancelEdit()" style="display:none;">Batal Edit</button>
         </div>
 
         <div class="list-card">
@@ -213,6 +265,8 @@
             "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd1ZHBoYnloeXNsbmx0dm1yY2F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDkxNTksImV4cCI6MjA5Mjk4NTE1OX0.WNtZ7v_7XntD3I679T9LyfeyasJcVGMzhsEyKMX3Ihk"
         );
 
+        let editingId = null; // null = mode tambah, ada id = mode edit
+
         function showToast(msg, color = '#22c55e') {
             const toast = document.getElementById('toast');
             toast.textContent = msg;
@@ -221,32 +275,79 @@
             setTimeout(() => toast.classList.remove('show'), 2500);
         }
 
-        async function addPost() {
+        function setEditMode(post) {
+            editingId = post.id;
+
+            document.getElementById('title').value = post.title || '';
+            document.getElementById('content').value = post.content || '';
+            document.getElementById('media').value = post.media_url || '';
+
+            document.getElementById('form-title').textContent = '✏️ Edit Konten';
+            document.getElementById('btn-submit').textContent = 'Simpan Perubahan';
+            document.getElementById('btn-cancel').style.display = 'block';
+            document.getElementById('form-card').classList.add('edit-mode');
+
+            // Scroll ke form
+            document.getElementById('form-card').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingId = null;
+
+            document.getElementById('title').value = '';
+            document.getElementById('content').value = '';
+            document.getElementById('media').value = '';
+
+            document.getElementById('form-title').textContent = '➕ Tambah Konten';
+            document.getElementById('btn-submit').textContent = 'Tambah Post';
+            document.getElementById('btn-cancel').style.display = 'none';
+            document.getElementById('form-card').classList.remove('edit-mode');
+        }
+
+        async function submitPost() {
             const title = document.getElementById('title').value.trim();
             const content = document.getElementById('content').value.trim();
             const media = document.getElementById('media').value.trim();
 
-            // Minimal 1 field harus diisi
             if (!title && !content && !media) {
                 showToast('⚠️ Minimal satu field harus diisi!', '#f59e0b');
                 return;
             }
 
-            const { error } = await supabaseClient.from('posts').insert([{
-                title,
-                content,
-                media_url: media || null
-            }]);
+            if (editingId) {
+                // Mode edit — UPDATE
+                const { error } = await supabaseClient.from('posts').update({
+                    title: title || null,
+                    content: content || null,
+                    media_url: media || null
+                }).eq('id', editingId);
 
-            if (error) {
-                showToast('❌ Gagal menambah: ' + error.message, '#f87171');
-                return;
+                if (error) {
+                    showToast('❌ Gagal mengedit: ' + error.message, '#f87171');
+                    return;
+                }
+
+                showToast('✅ Post berhasil diperbarui!');
+                cancelEdit();
+            } else {
+                // Mode tambah — INSERT
+                const { error } = await supabaseClient.from('posts').insert([{
+                    title: title || null,
+                    content: content || null,
+                    media_url: media || null
+                }]);
+
+                if (error) {
+                    showToast('❌ Gagal menambah: ' + error.message, '#f87171');
+                    return;
+                }
+
+                showToast('✅ Post berhasil ditambahkan!');
+                document.getElementById('title').value = '';
+                document.getElementById('content').value = '';
+                document.getElementById('media').value = '';
             }
 
-            showToast('✅ Post berhasil ditambahkan!');
-            document.getElementById('title').value = '';
-            document.getElementById('content').value = '';
-            document.getElementById('media').value = '';
             loadPosts();
         }
 
@@ -260,6 +361,7 @@
                 return;
             }
 
+            if (editingId === id) cancelEdit();
             showToast('🗑️ Post dihapus!', '#f87171');
             loadPosts();
         }
@@ -288,17 +390,43 @@
             data.forEach(post => {
                 const div = document.createElement('div');
                 div.className = 'post-item';
-                const label = post.title || (post.content ? post.content.substring(0, 40) + (post.content.length > 40 ? '...' : '') : post.media_url ? '(media)' : '(kosong)');
-                const sub = post.title && post.content ? post.content.substring(0, 60) + (post.content.length > 60 ? '...' : '') : post.media_url ? post.media_url : '';
+
+                const label = post.title
+                    || (post.content ? post.content.substring(0, 40) + (post.content.length > 40 ? '...' : '') : '')
+                    || (post.media_url ? '(media)' : '(kosong)');
+
+                const sub = post.title && post.content
+                    ? post.content.substring(0, 60) + (post.content.length > 60 ? '...' : '')
+                    : post.media_url ? post.media_url : '';
+
                 div.innerHTML = `
-                    <div>
+                    <div style="min-width:0;flex:1;">
                         <b>${label}</b>
-                        <span>${sub}</span>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${sub}</span>
                     </div>
-                    <button class="btn-delete" onclick="deletePost('${post.id}')">🗑️ Hapus</button>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editPost('${post.id}')">✏️ Edit</button>
+                        <button class="btn-delete" onclick="deletePost('${post.id}')">🗑️ Hapus</button>
+                    </div>
                 `;
                 list.appendChild(div);
             });
+        }
+
+        // Ambil 1 post dari Supabase lalu masukkan ke form edit
+        async function editPost(id) {
+            const { data, error } = await supabaseClient
+                .from('posts')
+                .select('*')
+                .eq('id', id)
+                .single();
+
+            if (error || !data) {
+                showToast('❌ Gagal mengambil data post', '#f87171');
+                return;
+            }
+
+            setEditMode(data);
         }
 
         loadPosts();

@@ -272,7 +272,7 @@
                     const isVideo = /\.(mp4|webm|ogg)$/i.test(post.media_url);
 
                     const mediaEl = isVideo
-                        ? `<video src="${post.media_url}" controls playsinline></video>`
+                        ? `<video src="${post.media_url}" autoplay muted loop playsinline controls></video>`
                         : `<img src="${post.media_url}" alt="${post.title || ''}" loading="lazy" />`;
 
                     mediaBlock = `<div class="card-media">${mediaEl}</div>`;
